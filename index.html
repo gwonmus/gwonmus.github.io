@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KDA 감도 분석</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background-color: #f0f4f8;
+      margin: 0;
+      padding: 2rem;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+    }
+    .card {
+      background: #fff;
+      border-radius: 1rem;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      width: 300px;
+    }
+    input, button {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #4f93ce;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #3c78a9;
+    }
+    table {
+      width: 100%;
+      margin-top: 1rem;
+      border-collapse: collapse;
+    }
+    td, th {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: center;
+    }
+    canvas {
+      max-width: 100%;
+    }
+    .chart-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+    }
+    .chart-box {
+      flex: 1 1 45%;
+      background: white;
+      padding: 1rem;
+      border-radius: 1rem;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    details {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>KDA 감도 비교 프로그램</h1>
+  <div class="container">
+    <div class="card">
+      <h3>새 감도 추가</h3>
+      <input type="text" id="sensitivity-name" placeholder="감도 이름 입력" onkeydown="addOnEnter(event, 'add-sensitivity')" />
+      <button onclick="addSensitivity()">감도 추가</button>
+    </div>
+    <div class="card">
+      <h3>감도별 KDA 기록</h3>
+      <select id="sensitivity-select"></select>
+      <input type="number" placeholder="Kill" id="kill" onkeydown="focusNext(event, 'death')"  />
+      <input type="number" placeholder="Death" id="death" onkeydown="focusNext(event, 'assist')" />
+      <input type="number" placeholder="Assist" id="assist" onkeydown="focusNext(event, 'score')" />
+      <input type="number" placeholder="전투 점수" id="score" onkeydown="addOnEnter(event, 'add-kda')" />
+      <button onclick="addKDA()">KDA 추가</button>
+    </div>
+    <div class="card">
+      <h3>기록 초기화</h3>
+      <button onclick="resetData()">초기화</button>
+    </div>
+  </div>
+
+  <div class="container" style="margin-top: 2rem;">
+    <div class="card" style="flex: 1 1 100%;">
+      <h3>감도별 평균 KDA & 전투 점수</h3>
+      <div id="data-table"></div>
+    </div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h4>평균 KDA</h4>
+        <canvas id="chartKDA"></canvas>
+      </div>
+      <div class="chart-box">
+        <h4>평균 전투 점수</h4>
+        <canvas id="chartScore"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const storageKey = 'kdaData';
+    let kdaData = JSON.parse(localStorage.getItem(storageKey)) || {};
+
+	function focusNext(event, nextId) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        document.getElementById(nextId).focus();
+      }
+    }
+    
+    function addOnEnter(event, funcName) {
+		if (event.key==='Enter') { 
+			switch (funcName) {
+				case 'add-sensitivity':
+					addSensitivity();
+					break;
+				case 'add-kda':
+					addKDA();
+					break;
+				default:
+					console.log('No matching key to add');
+			}
+		}
+    }
+
+    
+    function saveData() {
+      localStorage.setItem(storageKey, JSON.stringify(kdaData));
+      renderTable();
+      renderChart();
+    }
+
+    function updateSelect(selectedName = null) {
+      const select = document.getElementById('sensitivity-select');
+      select.innerHTML = '';
+      Object.keys(kdaData).forEach(key => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = key;
+        if (key === selectedName) option.selected = true;
+        select.appendChild(option);
+      });
+    }
+
+    function addSensitivity() {
+      const input = document.getElementById('sensitivity-name');
+	  const name = input.value.trim();
+      if (name && !kdaData[name]) {
+		kdaData[name] = [];
+		saveData();
+		updateSelect(name);
+		// kda 바로 기록 시작할 수 있게 이동
+		document.getElementById('kill').focus();
+	  } else {
+		updateSelect();
+	  }
+	  input.value = '';
+    }
+
+    function addKDA() {
+      const name = document.getElementById('sensitivity-select').value;
+      const kill = parseFloat(document.getElementById('kill').value);
+      const death = parseFloat(document.getElementById('death').value);
+      const assist = parseFloat(document.getElementById('assist').value);
+      const score = parseFloat(document.getElementById('score').value);
+      const time = new Date().toLocaleString();
+      if (!name || isNaN(kill) || isNaN(death) || isNaN(assist) || isNaN(score)) return;
+      kdaData[name].push({ kill, death, assist, score, time });
+      document.getElementById('kill').value = '';
+      document.getElementById('death').value = '';
+      document.getElementById('assist').value = '';
+      document.getElementById('score').value = '';
+      document.getElementById('kill').focus();
+      saveData();
+    }
+
+    function resetData() {
+      if (confirm('정말 모든 데이터를 초기화하시겠습니까?')) {
+        localStorage.removeItem(storageKey);
+        kdaData = {};
+        saveData();
+      }
+    }
+
+    function renderTable() {
+      const container = document.getElementById('data-table');
+      container.innerHTML = '';
+      Object.entries(kdaData).forEach(([name, records]) => {
+        if (records.length === 0) return;
+
+        const total = records.reduce((acc, r) => {
+          acc.kill += r.kill;
+          acc.death += r.death;
+          acc.assist += r.assist;
+          acc.score += r.score;
+          return acc;
+        }, { kill: 0, death: 0, assist: 0, score: 0 });
+
+        const avgKDA = ((total.kill + total.assist) / Math.max(1, total.death)).toFixed(2);
+        const avgScore = (total.score / records.length).toFixed(0);
+
+        const detail = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.innerHTML = `<strong>${name}</strong> - 평균 KDA: ${avgKDA} / 평균 점수: ${avgScore}`;
+        detail.appendChild(summary);
+
+        const table = document.createElement('table');
+        const header = document.createElement('tr');
+        header.innerHTML = '<th>No</th><th>Kill</th><th>Death</th><th>Assist</th><th>점수</th><th>기록 시간</th><th>삭제</th>';
+        table.appendChild(header);
+        records.forEach((r, index) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+			<td>${index + 1}</td>
+            <td>${r.kill}</td>
+            <td>${r.death}</td>
+            <td>${r.assist}</td>
+            <td>${r.score}</td>
+            <td>${r.time || ''}</td>
+            <td><button onclick="deleteRecord('${name}', ${index})">삭제</button></td>
+          `;
+          table.appendChild(row);
+        });
+
+        detail.appendChild(table);
+        container.appendChild(detail);
+      });
+    }
+    
+    function deleteRecord(name, index) {
+      if (!kdaData[name] || !kdaData[name][index]) return;
+      if (confirm('해당 기록을 삭제하시겠습니까?')) {
+        kdaData[name].splice(index, 1);
+        saveData();
+      }
+    }
+
+    function renderChart() {
+      const labels = Object.keys(kdaData);
+      const avgKDA = [];
+      const avgScore = [];
+
+      labels.forEach(name => {
+        const records = kdaData[name];
+        if (records.length === 0) {
+          avgKDA.push(0);
+          avgScore.push(0);
+          return;
+        }
+        const total = records.reduce((acc, r) => {
+          acc.kill += r.kill;
+          acc.death += r.death;
+          acc.assist += r.assist;
+          acc.score += r.score;
+          return acc;
+        }, { kill: 0, death: 0, assist: 0, score: 0 });
+        avgKDA.push(((total.kill + total.assist) / Math.max(1, total.death)).toFixed(2));
+        avgScore.push((total.score / records.length).toFixed(0));
+      });
+
+      if (window.kdaChart) window.kdaChart.destroy();
+      if (window.scoreChart) window.scoreChart.destroy();
+
+      const ctxKDA = document.getElementById('chartKDA').getContext('2d');
+      window.kdaChart = new Chart(ctxKDA, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: '평균 KDA',
+            data: avgKDA,
+            backgroundColor: 'rgba(54, 162, 235, 0.6)'
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'KDA'
+              }
+            }
+          }
+        }
+      });
+
+      const ctxScore = document.getElementById('chartScore').getContext('2d');
+      window.scoreChart = new Chart(ctxScore, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: '평균 전투 점수',
+            data: avgScore,
+            backgroundColor: 'rgba(255, 159, 64, 0.6)'
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: '전투 점수'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    updateSelect();
+    renderTable();
+    renderChart();
+  </script>
+</body>
+</html>
