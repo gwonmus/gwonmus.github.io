@@ -13,6 +13,20 @@
       padding: 2rem;
       color: #333;
     }
+    .header {
+	  display: flex;
+	  flex-direction: column;
+	  align-items: center;
+	  margin-bottom: 2rem;
+	}
+
+	.header a img {
+	  border-radius: 50%;
+	  border: 2px solid #ccc;
+	  width: 100px;
+	  height: 100px;
+	  object-fit: cover;
+	}
     h1 {
       text-align: center;
       margin-bottom: 2rem;
@@ -30,6 +44,13 @@
       padding: 1.5rem;
       width: 300px;
     }
+    select {
+		width: 100%;
+		height: 34px;
+		font-weight: bold;
+		padding-left: 5px;
+		font-family: 'Pretendard';
+    }
     input, button {
       width: 100%;
       padding: 0.5rem;
@@ -46,6 +67,9 @@
     button:hover {
       background-color: #3c78a9;
     }
+    summary {
+		cursor: pointer;
+    }
     table {
       width: 100%;
       margin-top: 1rem;
@@ -55,6 +79,21 @@
       border: 1px solid #ccc;
       padding: 0.5rem;
       text-align: center;
+    }
+    .delete-button {
+		border: 1px solid rgb(204, 204, 204);
+		border-radius: 0.25rem;
+		padding: 0.2rem 0.5rem;
+		background: rgb(220, 53, 69);
+		color: white;
+		cursor: pointer;
+		width: auto;
+		transition: background 0.2s;
+		font-weight: bold;
+		margin: 0;
+    }
+    .delete-button:hover {
+		background: rgb(139 31 42);
     }
     canvas {
       max-width: 100%;
@@ -78,7 +117,10 @@
   </style>
 </head>
 <body>
-  <h1>KDA 감도 비교 프로그램</h1>
+<div class="header">
+	<a href="https://github.com/gwonmus" title="gwonmus"><img src="https://github.com/gwonmus.png" width="100px" height="100px"/></a>
+    <h1>KDA 감도 비교 프로그램</h1>
+</div>
   <div class="container">
     <div class="card">
       <h3>새 감도 추가</h3>
@@ -221,12 +263,12 @@
 
         const detail = document.createElement('details');
         const summary = document.createElement('summary');
-        summary.innerHTML = `<strong>${name}</strong> - 평균 KDA: ${avgKDA} / 평균 점수: ${avgScore}`;
+        summary.innerHTML = `<strong>${name}</strong> - 평균 KDA: ${avgKDA} / 평균 전투점수: ${avgScore}`;
         detail.appendChild(summary);
 
         const table = document.createElement('table');
         const header = document.createElement('tr');
-        header.innerHTML = '<th>No</th><th>Kill</th><th>Death</th><th>Assist</th><th>점수</th><th>기록 시간</th><th>삭제</th>';
+        header.innerHTML = '<th>No</th><th>Kill</th><th>Death</th><th>Assist</th><th>전투점수</th><th>기록 시간</th><th>삭제</th>';
         table.appendChild(header);
         records.forEach((r, index) => {
           const row = document.createElement('tr');
@@ -237,7 +279,7 @@
             <td>${r.assist}</td>
             <td>${r.score}</td>
             <td>${r.time || ''}</td>
-            <td><button onclick="deleteRecord('${name}', ${index})">삭제</button></td>
+            <td><button onclick="deleteRecord('${name}', ${index})" title="삭제" class="delete-button">X</button></td>
           `;
           table.appendChild(row);
         });
